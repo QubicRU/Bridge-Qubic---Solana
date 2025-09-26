@@ -226,14 +226,9 @@ Incentive programs for external liquidity providers (LPs), e.g., yield farming r
 Комиссия за перевод может составляет 1-2 %. 
 
 
-
-# 5. Модель безопасной работы моста Qubic — Solana с использованием ИИ
-
-Sure — below is a complete, practical, and ready-to-use **English-language design** for a **secure hybrid Qubic ↔ Solana bridge** that leverages AI for verification and validation. I cover architecture, AI roles, algorithms, governance, safety controls, APIs, metrics, incident responses, and an implementation roadmap so you can use this in a design doc or whitepaper.
-
 ---
 
-# Secure Hybrid Qubic ↔ Solana Bridge with AI-based Verification & Validation
+# 5. Secure Hybrid Qubic ↔ Solana Bridge with AI-based Verification & Validation
 
 ## Executive summary
 

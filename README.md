@@ -225,283 +225,367 @@ Incentive programs for external liquidity providers (LPs), e.g., yield farming r
 
 Комиссия за перевод может составляет 1-2 %. 
 
-# Отлично — ниже полный, практичный и детализированный дизайн **модели безопасной работы моста Qubic ↔ Solana с использованием ИИ**. Описано всё: архитектура, роль ИИ в каждой подсистеме, алгоритмы, меры безопасности против атак на ML, операционный плейбук, метрики и этап внедрения. Сделаю по-русски.
 
-# Модель безопасной работы моста Qubic — Solana с использованием ИИ
 
-## Краткая идея
+# 5. Модель безопасной работы моста Qubic — Solana с использованием ИИ
 
-Гибридная архитектура моста (валидаторы + light-client) дополняется слоями интеллектa, которые автоматически:
-
-* мониторят и обнаруживают аномалии и атаки в реальном времени;
-* оптимизируют комиссии и стейкинг/инцентивы для поддержания ликвидности;
-* помогают принимать решения по аварийным меркам (pausing, slashing, топ-апы);
-* прогнозируют потоки (demand forecasting) и планируют пополнения;
-* анализируют поведение валидаторов/релееров и выявляют рискованные/зловредные узлы.
-
-ИИ — не «единый оракул», а набор специализированных моделей с контролем, explainability и «человеко-в-петле» (human-in-the-loop) для критичных решений.
+Sure — below is a complete, practical, and ready-to-use **English-language design** for a **secure hybrid Qubic ↔ Solana bridge** that leverages AI for verification and validation. I cover architecture, AI roles, algorithms, governance, safety controls, APIs, metrics, incident responses, and an implementation roadmap so you can use this in a design doc or whitepaper.
 
 ---
 
-## Компоненты системы (высокоуровневая архитектура)
+# Secure Hybrid Qubic ↔ Solana Bridge with AI-based Verification & Validation
 
-1. **On-chain слой**
+## Executive summary
 
-   * Смарт-контракты моста (Qubic и Solana): lock/mint, pool accounting, fee collector, pausе, slashing, dispute.
-   * Oracle интерфейс для получения «решений»/сигналов от офф-чейн ML-сервиса (см. далее).
-   * Модули аудита и proof-store (для light client и доказательств).
+A Hybrid security architecture combining:
 
-2. **Off-chain инфраструктура (оперативный бекенд)**
+* **External validator network** (fast, validator-first execution with threshold signatures), and
+* **Cryptographic verification via light clients** (trust-minimizing checks),
 
-   * **Validator Network** (N валидаторов, multisig/threshold signatures).
-   * **Relayers** — служба передачи сообщений.
-   * **Monitoring & Data Collector** — собирает данные из обеих цепочек, логов валидаторов, релееров, ордеров, API, ордингов, агрегаторов цен.
-   * **AI Engine** — набор ML моделей (см. раздел ниже).
-   * **Decision Service (Policy Engine)** — business rules + ML signals → действия (например, raise fee, pause bridge, flag validator). Любое автоматическое действие критического уровня проходит через проверку политиками и, при необходимости, human approval.
-   * **Dashboard & Incident Console** — UI для операторов/DAO с explainability сигналов ИИ.
+augmented with an **AI layer** that performs real-time monitoring, anomaly detection, validator risk scoring, liquidity forecasting, dynamic fee optimization, and decision support. AI assists validation and verification: validator actions remain primary for latency-sensitive flows, while AI + light-client proofs provide a cryptographic safety net and automated risk mitigation.
 
-3. **Governance / Treasury / Insurance**
+Key goals:
 
-   * DAO voting, treasury для топ-апов, insurance pool, bug bounty, slashing rules.
+* fast, UX-friendly transfers;
+* robust, multi-layered security;
+* automated detection/response to attacks and anomalies;
+* self-sustaining operations via fee optimization and liquidity management;
+* auditable, explainable AI decisioning with human-in-the-loop controls for critical actions.
 
 ---
 
-## Роли ИИ (где и зачем)
+## High-level architecture (components & responsibilities)
 
-1. **Anomaly Detection / Fraud Detection**
+### On-chain components
 
-   * Цель: обнаружить аномальные события (всплески вывода, синхронные транзакции по схеме «вымывания», подозрительная активность валидатора/релера).
-   * Модели: unsupervised (Isolation Forest, Autoencoder), графовые (GNN) для выявления нетипичных цепочек транзакций/взаимодействий.
-   * Действия: raise alert, временная приостановка операций высокого риска, запускается dispute/forensic pipeline.
+* **Qubic Bridge Contract** (on Qubic):
 
-2. **Validator / Relayer Risk Scoring**
+  * lock/unlock, pool accounting, events emitter, pause/slash hooks, upgradeability.
+* **Solana Bridge Contract** (on Solana):
 
-   * Цель: профилирование узлов по надежности.
-   * Модели: supervised (если метки есть) + unsupervised clustering + time-series features (uptime, latency, signature patterns, IP география, связность).
-   * Действия: динамическое изменение порога доверия, слэшинг/ремув, рекомендации для DAO по смене состава.
+  * mint/burn wQUBIC, pool accounting, dispute handling.
+* **Light-Clients / Proof-Verification Modules:**
 
-3. **Liquidity Forecasting & Dynamic Fee Optimization**
+  * simplified light-client components deployed on each chain capable of verifying headers / Merkle proofs from the opposite chain.
+* **Fee & Reserve Contracts:**
 
-   * Цель: прогноз спроса (по направлению), оптимизация комиссии/инцентивов, предотвращение дефицита ликвидности.
-   * Модели: time-series (Prophet, LSTM), causal models + Reinforcement Learning агент (policy) для динамической настройки fee и LP rewards.
-   * Reward в RL: комбинирует доходность, вероятность резкого оттока, удовлетворённость пользователей и резервный фонд уровни.
+  * collectors for fee shares, reserve fund contract, staking/slashing interfaces.
 
-4. **Automated Incident Response Assistant**
+### Off-chain components
 
-   * Цель: выработать и предложить ближайшие шаги при инциденте (pausing, rollback, emergency top-up).
-   * Модели: decision trees + rule engine + similarity search (по истории инцидентов) → rank действий и ожидаемый эффект.
-   * Human-in-loop обязательный при крупных суммах.
+* **Validator Network (N nodes)**:
 
-5. **Proof Verification Optimization**
+  * monitors on-chain events; signs cross-chain messages; participates in threshold multisig for finalization.
+* **Relayers**:
 
-   * Цель: оптимизировать формирование, пакетирование и проверку Merkle proofs / light client sync для снижения затрат.
-   * Модель: planner + cost model → решает, когда формировать батчи, какие транзакции требовать обязательной проверкой.
+  * transport signed messages and proofs between chains.
+* **Data Collector & Monitoring**:
 
-6. **Explainability & Audit Logs**
+  * streaming ingestion of on-chain events, mempool, validator metrics, infra telemetry, price oracles.
+* **AI Engine (Off-chain)**:
 
-   * Цель: все ML решения логируются, с причинно-следственными объяснениями (SHAP/Anchors для tabular, attention-maps для sequence models).
+  * real-time anomaly detection, validator risk scoring, demand forecasting, RL-based fee optimizer, proof-batching optimizer.
+* **Policy / Decision Service**:
 
----
+  * business rules + ML signals → recommended or automated actions. Enforces human-in-the-loop policy for critical actions.
+* **Operator Dashboard & Incident Console**:
 
-## Подробно: ключевые модели и алгоритмы
+  * incident triage, ML explainability, dashboards, audit logs.
+* **Governance & Treasury**:
 
-### 1) Аномалия (real-time) — схема
+  * DAO proposals, treasury to top-up liquidity/reserves, manage policy params.
 
-* **Входные данные:** поток транзакций, таймстемпы, суммы, адреса, профили валидаторов, IP/LOC, on-chain balances, mempool patterns.
-* **Фичи:** rate per address, velocity (USD/sec), cluster membership, entropy of destinations, proportion of transfers > X, changes in nonce patterns.
-* **Модель:** Ensemble of:
+### Integration layer
 
-  * Streaming IsolationForest (detect point anomalies).
-  * Sequence Autoencoder (LSTM/Transformer) для multivariate series (выявляет аномальные паттерны).
-  * Graph Anomaly Detector (for coordinated addresses).
-* **Порог:** multi-signal voting: если ≥2 моделей триггерят → high alert.
-* **Action:** immediate throttle on direction (soft block) + notify operators + mark related validator signatures for review.
+* **Oracle / Signed Decisions**:
 
-### 2) Validator Risk Scoring — схема
+  * Decision Service signs structured signals (signed messages) and relayers pass them to on-chain contracts to execute allowed actions (set fee, enable emergency pause, request proof enforcement).
+* **Logging & Audit Anchoring**:
 
-* **Вход:** uptime, avg latency, signature timing distribution, stake history, on-chain tx patterns, infra metrics.
-* **Модель:** Gradient Boosted Trees (XGBoost) + temporal decay; periodic re-training.
-* **Output:** score ∈ [0..1]. Политики:
-
-  * score < 0.3 → temporary isolation, reduce weight in multisig quorum.
-  * 0.3–0.6 → monitoring + require additional proof for their signatures.
-  * > 0.6 → normal.
-
-### 3) Dynamic Fee Optimization (RL agent) — схема
-
-* **State:** pool balances (both sides), time, last K transfer volumes per direction, current fee, LP available, reserve level, price volatility.
-* **Action:** set fee multiplier for direction(s), set LP bonus.
-* **Reward:** R = α * fee_revenue - β * user_drop_rate - γ * reserve_depletion_penalty - δ * frictions_cost
-
-  * coefficients tuned by governance.
-* **Alg:** PPO (or DQN for discrete grid) with safety constraints: actions that would reduce reserve below min_threshold are masked.
-* **Safety:** conservative exploration, start in simulated environment, shadow deploy with human approval.
-
-### 4) Proof Batching & Cost Planner
-
-* Decide: per tx proof generation vs batched zk/merkle proof based on cost model (gas costs on Solana vs Qubic), priority flag, and risk score.
-* If tx flagged high risk → immediate individual proof mandatory.
-* Batch lower risk txs periodically to reduce costs.
+  * immutable audit entries (hashes) stored on-chain periodically for tamper-evidence.
 
 ---
 
-## Механизмы интеграции ИИ → on-chain действия
+## Data flows and typical transaction lifecycle
 
-* **Oracle Bridge:** ML Decision Service подписывает (oracle) structured signals (signed) и отправляет в контракт-receiver. Контракт имеет набор заранее разрешённых команд: setFeeMultiplier, pauseDirection, requireProofForTxsAbove(N), markValidator(validatorId, mode). Любая критичная команда требует multisig from operators or DAO approval (policy).
-* **Policy Engine:** сочетает ML score и business rules:
+### Example: QUBIC → wQUBIC (Qubic → Solana)
 
-  * Если ML_alert == low → only create ticket.
-  * Если ML_alert == medium → soft mitigation (increase fee, throttle).
-  * Если ML_alert == high and predicted loss > threshold → auto action with operator confirmation or immediate pause if emergency_flag.
+1. **User** initiates lock on Qubic bridge contract (lock event emitted).
+2. **Validator network** observes event and performs off-chain consensus. When threshold reached (e.g., 4/7), validators produce a threshold signature and submit the signed message to relayers.
+3. **Relayers** forward signed message to Solana bridge contract.
+4. **Solana bridge contract** mints wQUBIC to user (near-instant UX).
+5. **Parallel**: Data Collector feeds the event to AI Engine which:
 
----
-
-## Безопасность ML (защита моделей и данных)
-
-1. **Защита от data poisoning**
-
-   * Использовать robust statistics; репутационные временные веса; откат к “baseline” при подозрении на poisoning.
-   * Канарные модели и holdout validation streams.
-
-2. **Защита от model evasion**
-
-   * Ensemble моделей, adversarial training (simulate evasion patterns).
-   * Monitor drift: sudden change в распределении признаков → trigger retraining and human review.
-
-3. **Конфиденциальность и безопасность данных**
-
-   * Все приватные логи шифруются. Модели не разглашают PII.
-   * Доступ к моделям через RBAC, секреты в HSM/Secret Manager.
-
-4. **Explainability / Audit**
-
-   * Каждое ML-решение сопровождается explainability payload (top contributing features).
-   * Логи хранятся для аудита на-chain hashes for tamper-evidence.
+   * generates a proof verification job (light-client / Merkle proof) or schedules a zk-batch proof verification.
+   * computes risk/ anomaly score for the specific event or validator signature pattern.
+6. **Light client or proof** is submitted within a configured window and verified on Solana. If verification fails or AI flags fraud, dispute process is triggered; slashing/top-up/rescue is executed per policy.
 
 ---
 
-## Операционные процессы (playbook)
+## Roles of AI — concrete functions
 
-1. **Normal ops**
+### 1. Real-time Anomaly Detection
 
-   * ML мониторинг в реальном времени → alerts dashboard.
-   * Weekly retrain: validator scoring, demand forecasting.
-   * Monthly governance proposals: adjust RL reward weights, reserve policy.
+* Purpose: detect unusual withdrawal patterns, coordinated mass-exit, mempool manipulation, bot attacks.
+* Inputs: per-tx features (amount, frequency, origin cluster), pool balances, validator signature timing, IP/geo telemetry, price feeds.
+* Models: ensemble (streaming Isolation Forest, sequence autoencoders / LSTM, graph anomaly detector for address clusters).
+* Outputs: alert level (low/medium/high), affected txs, explainability features.
 
-2. **Incident (suspicious outflow detected)**
+### 2. Validator & Relayer Risk Scoring
 
-   * Stage 1 (automated): soft throttling on direction + create incident ticket.
-   * Stage 2 (if persistence or high predicted loss): elevated actions (increase fee, request manual approval for pause).
-   * Stage 3 (confirmed exploit): pause relevant contract functions, initiate slashing, activate reserve compensation, open forensic pipeline.
-   * All steps логируются и публикуются в transparency dashboard.
+* Purpose: score validators by reliability and risk (uptime, signature timing anomalies, infra indicators, stake history).
+* Models: gradient-boosted trees (XGBoost) with temporal features and exponential decay; periodic profile clustering.
+* Outputs: per-validator risk score ∈ [0..1], suggestions to reduce weight in multisig or require secondary proof for a node’s signatures.
 
-3. **Human in loop**
+### 3. Liquidity Forecasting & Dynamic Fee Optimization (RL)
 
-   * Operator confirmation required for pausing major bridge functions and for slashing validators beyond soft measures.
-   * DAO can override operator decisions via governance.
+* Purpose: predict direction-specific demand and set fees to maintain balanced pools and cover costs.
+* Modules:
 
----
+  * Demand forecasting: Prophet / LSTM time-series for per-direction volumes.
+  * RL fee optimizer: constrained RL (PPO) that sets fee multipliers, LP incentives, or temporary caps.
+* Rewards blend revenue vs. risk (reserve depletion penalty, user drop, slippage cost).
 
-## Меры доверия и прозрачности пользователям
+### 4. Proof-Batching / Proof Planner
 
-* **Real-time Proofs & PoR (proof-of-reserves)** публикуются (Merkle commitments) — автоматизированный feed.
-* **Explainable Alerts:** пользователи видят состояние liquidity pools, why fee increased (aggregate reason) и expected time to normal.
-* **Audit & Bug Bounty:** публикуются ML models high-level design и code for review; external security audit of both ML infra and smart contracts.
+* Purpose: decide when to generate/verfiy proofs individually or batched (cost vs. risk tradeoff).
+* Heuristic + learned cost model that minimizes verification cost subject to risk constraints (flagged txs forced to immediate proof).
 
----
+### 5. Incident Response Assistant & Playbook Ranking
 
-## Валидация, тесты и метрики успеха
+* Purpose: rank recommended mitigations (soft-throttle, raise-fee, pause-direction, slashing) using historical outcomes and model-based simulation.
+* Ensures human operator / DAO sees ranked options with expected impacts.
 
-### Метрики (KPI)
+### 6. Explainability & Audit Trails
 
-* Mean Time To Detect (MTTD) аномалий. Цель: < 1 min for high-severity.
-* False Positive Rate (FPR) на anomaly detection — удерживать < X% (например <5% для high alerts).
-* % of transfers processed instant via validators.
-* Liquidity reserve ratio (min_target e.g. 10% of 30-day avg flow).
-* Revenue vs OpEx (самоокупаемость): fee revenue >= running cost within T месяцев.
-* User satisfaction / failed transfer rate.
-
-### Тестирование
-
-* Backtest ML models on historic data + synthetic attacks (reentrancy, mass withdrawals, validator collusion).
-* Red team (penetration test) с ML adversary scenarios.
-* Shadow rollouts: RL agent действует в shadow mode (предлагает fees) без on-chain effect, сравнение с baseline.
+* All AI decisions must produce explainability payloads (e.g., SHAP values, top features) and a signed audit log for governance and external auditors.
 
 ---
 
-## Риски и способы их снижения
+## Verification & validation lifecycle (AI + cryptography)
 
-1. **Over-automation risk:** автоматические паузы → пользовательский ущерб.
-   → Решение: conservative policy, human approval for critical actions, gradual throttling.
+1. **Primary fast path** — validator threshold signatures finalize transfers quickly for UX.
+2. **Secondary verification** — either:
 
-2. **ML model manipulation (poisoning/evasion):**
-   → Решение: data provenance, anomaly ensembles, adversarial training, canary models.
+   * Light-client verification of chain headers + Merkle proofs, OR
+   * Batched zk- or succinct proofs when feasible (costly but strong).
+3. **AI verification** adds:
 
-3. **Cost explosion (proof generation, light client upkeep):**
-   → Решение: batching, adaptive verification (разные уровни для разного размера транзакций), fee allocation.
+   * anomaly detection at time of event,
+   * validator score check (if validator low score → force proof or reject),
+   * scheduling of proof verification and marking for dispute if mismatch.
+4. **Dispute resolution**: if proof invalid or AI signals high fraud probability:
 
-4. **Governance attack / corrupted DAO decision:**
-   → Решение: strata of checks — operator multisig + time locks + insurance fund.
-
----
-
-## Примерные технические спецификации и стек
-
-* **Data ingest & streaming:** Kafka / Kinesis, change data capture from nodes.
-* **Feature store:** Feast / custom store.
-* **Models:** PyTorch / TensorFlow для sequence/GNN; scikit-learn/XGBoost для таблички.
-* **Serving:** Triton / TorchServe / FastAPI endpoints. Low latency for anomaly detection (<200ms).
-* **Orchestration:** Kubernetes, ArgoCD for infra.
-* **Secrets / Keys:** HSM for signing ML oracle outputs.
-* **On-chain integration:** Oracle signer uses threshold signature (to avoid single key compromise).
-* **Logging & Audit:** Immutable logs in object storage + merkleized on-chain anchors.
+   * freeze affected assets on destination chain (via emergency pause),
+   * activate slashing of malicious validators,
+   * use reserve fund to protect users while forensic analysis proceeds,
+   * propose DAO governance action if required.
 
 ---
 
-## Псевдокод: простая аномалия + action flow (упрощённо)
+## Key policies & safety constraints
 
-```python
-# streaming handler (simplified)
-for tx in tx_stream:
-    features = featurize(tx)
-    score_if = isolation_forest.score(features)
-    score_ae = autoencoder.reconstruction_error(features)
-    graph_anom = gnn.detect(features)
+* **Human-in-the-loop for critical actions**: any automatic pause, large slashing, or reserve usage requires operator sign-off or multi-sig + DAO time-lock depending on thresholds.
+* **Action tiers**:
 
-    alerts = 0
-    if score_if > IF_THRESHOLD: alerts += 1
-    if score_ae > AE_THRESHOLD: alerts += 1
-    if graph_anom: alerts += 1
+  * Tier 1 (low-risk): AI suggests, auto-applies soft mitigations (increase fee, soft throttle).
+  * Tier 2 (medium-risk): AI suggests and requires single operator approval (or multisig) to execute.
+  * Tier 3 (high-risk / emergency): automated safeguards (auto-pause) enabled if immediate loss predicted > emergency threshold — but always followed by emergency human review and DAO notification.
+* **Fail-safe defaults**: in the event of AI failure, system reverts to validator-only mode with conservative fees and increased proof requirements.
+* **Immutable logging & transparency**: all AI signals and actions are logged, and on-chain commitments of logs are made periodically.
 
-    if alerts >= 2:
-        # create incident
-        incident = create_incident(tx, scores=[score_if, score_ae], explain=explain(features))
-        # policy engine
-        policy = policy_engine.evaluate(incident)
-        if policy.action == "soft_throttle":
-            apply_throttle(direction=tx.direction, factor=policy.factor)
-        elif policy.action == "pause" and operator_confirms():
-            onchain.pause(direction=tx.direction)
-        notify_dashboard(incident)
+---
+
+## Governance & economics
+
+* **Fee split**: part to validator rewards, part to LP incentives, part reserved for insurance/reserve, part to DAO/development.
+* **Reserve fund**: sourced from a percentage of fees; used to reimburse in validated exploits; minimum reserve threshold defined (e.g., 10% of 30-day average flow).
+* **Staking & Slashing**:
+
+  * Validators stake bonds; slashing rules tied to malicious signatures, excessively anomalous behavior validated by AI + proofs.
+  * Dispute and appeal windows are established to prevent false positives.
+* **DAO controls**: parameter changes to ML thresholds, fee multipliers, validator set size, emergency thresholds happen through DAO proposals.
+
+---
+
+## ML security & trustworthiness
+
+* **Data integrity & provenance**: signed data feeds, tamper-evident ingestion pipelines.
+* **Protect against data poisoning**:
+
+  * Use holdout streams, train on multiple windows, canary models, and robust estimators.
+  * Use ensemble voting; require ≥2 independent signals for high-severity decisions.
+* **Adversarial resilience**:
+
+  * Periodic adversarial training and simulated attack scenarios.
+  * Monitoring for distribution drift triggers human review and rollback to baseline models.
+* **Access control & secrets**:
+
+  * All model endpoints behind RBAC; oracle signing keys in HSM; output signatures thresholded to avoid single point compromise.
+* **Explainability**:
+
+  * Provide interpretable reasoning (top features, historical precedents) for any decision that affects on-chain state.
+
+---
+
+## APIs & message formats (examples)
+
+### 1. Decision Service → On-chain (signed message)
+
+```json
+{
+  "action": "increase_fee",
+  "direction": "Qubic->Solana",
+  "multiplier": 1.5,
+  "reason": "liquidity_imbalance",
+  "evidence_hash": "0xabc...",
+  "timestamp": 1712345678
+}
+```
+
+* Signed by Decision Service (HSM) and optionally by a threshold of operator keys.
+* Contracts accept only pre-authorized action types and require multisig/time-lock for critical actions.
+
+### 2. Validator multisig message (threshold signature)
+
+```json
+{
+  "type": "finalize_transfer",
+  "tx_id": "QUBIC:0x123...",
+  "amount": 5000,
+  "recipient": "Solana:4Gk...",
+  "validators_signatures": ["sig1", "sig2", "sig3", "sig4"],
+  "timestamp": 1712345678
+}
+```
+
+### 3. AI alert webhook (for operator dashboard)
+
+```json
+{
+  "alert_id": "ALERT-2025-0001",
+  "severity": "high",
+  "description": "Unusual coordinated outflow from 12 addresses",
+  "affected_txs": ["QUBIC:0x...","QUBIC:0x..."],
+  "explainability": {"top_features": [{"name":"velocity","value":0.98},{"name":"new_address_count","value":0.93}]},
+  "recommendation": {"action":"soft_throttle", "params": {"direction":"Qubic->Solana", "factor":0.5}}
+}
 ```
 
 ---
 
-## Roadmap внедрения (эпохи)
+## Metrics / KPIs
 
-1. **Phase 0 (0–2 мес):** data collection infra, baseline monitoring, simple rule engine, basic anomaly detector.
-2. **Phase 1 (2–6 мес):** deploy validator scoring, demand forecasting, basic RL in shadow; integrate with dashboard.
-3. **Phase 2 (6–12 мес):** RL live with conservative constraints, batching proof planner, automated incident assistant (human approval).
-4. **Phase 3 (12+ мес):** расширенная автоматизация, DAO-governed policies, full explainability + audits.
+* **MTTD (Mean time to detect)** anomalies — target < 1 min for high-severity.
+* **MTTR (Mean time to respond)** for critical incidents — target < 30 minutes operator triage.
+* **False positive rate** for high-severity alerts — target < 5%.
+* **% transactions processed instant via validators** (fast path) — target > 95%.
+* **Reserve coverage ratio** (reserve / 30-day avg outflow) — target ≥ 10–20%.
+* **Liquidity imbalance frequency** — targeted reduction with RL fee optimizer.
+* **System availability** — > 99.9% (excluding emergency pauses).
 
 ---
 
-## Заключение — почему это безопасно и жизнеспособно
+## Incident response playbook (example)
 
-* Гибридный подход (валидаторы + light client) даёт нужный компромисс между UX и безопасностью.
-* ИИ-слой делает систему проактивной: обнаруживает ранние признаки атак, прогнозирует ликвидность, оптимизирует комиссии, но не заменяет человеческую ответственность — критичные решения проходят через policy + multisig/DAO.
-* Защита ML от атак, explainability и аудитируемость обеспечивают прозрачность и приемлемую операционную модель.
-* Модель масштабируема: можно начать с базовых ML инструментов и постепенно вводить более рискованные автоматизации по мере накопления данных и доверия.
+1. **AI raises high alert** → soft-throttle applied automatically (per policy).
+2. **Operator receives alert in dashboard** with evidence & explainability.
+3. **Decision**:
+
+   * if evidence weight high => operator approves emergency pause + multisig executed.
+   * else => increase fees + request proof verification for flagged txs.
+4. **Forensic pipeline** retrieves full history, light-client proofs verified, validators reviewed.
+5. **If confirmed exploit**:
+
+   * Slash misbehaving validators (per protocol rules).
+   * Use reserve to reimburse legitimate victims.
+   * Publish incident report and DAO proposal for further actions.
+
+---
+
+## Deployment roadmap & phased rollout
+
+**Phase 0 — foundational (0–2 months)**
+
+* Deploy basic validator network & relayers.
+* Implement bridge contracts (lock/mint) and reserve contract.
+* Deploy monitoring + simple rule-based alerts.
+
+**Phase 1 — ML pilot & light client (2–6 months)**
+
+* Implement Data Collector, simple anomaly detection, validator scoring baseline.
+* Deploy light-client proof verification module (basic).
+* Policy Engine for recommended actions; human-in-loop required.
+
+**Phase 2 — optimization & automation (6–12 months)**
+
+* RL fee optimizer in shadow mode; then conservative live mode.
+* Proof-batching optimizer & selective proof enforcement.
+* Automated incident assistant (operator approval still required for critical actions).
+
+**Phase 3 — maturity (12+ months)**
+
+* Full automation pathways with strict safeguards, explainability guarantees, DAO-managed policy updates.
+* Extensive external audits and public PoR feeds; community bug-bounty.
+
+---
+
+## Implementation considerations & recommended tech stack
+
+* **Streaming & ingestion**: Kafka or Kinesis for real-time event streams.
+* **Feature store**: Feast or custom store for model features.
+* **ML frameworks**: PyTorch / TensorFlow for sequence/graph models; scikit-learn / XGBoost for tabular scores.
+* **Serving**: Triton / TorchServe / FastAPI for low-latency model inference.
+* **Orchestration**: Kubernetes, ArgoCD.
+* **Secrets & signing**: HSM for signing Decision Service outputs; threshold signing for validator keys.
+* **Logging & audit**: Immutable S3 + periodic on-chain anchors for tamper-evidence.
+* **Dashboards**: Grafana + custom UI for explainability and incident workflows.
+
+---
+
+## Example pseudocode (simplified) — streaming anomaly + policy decision
+
+```python
+for event in transaction_stream:
+    features = featurize(event)
+    anom_score = ensemble_anomaly.score(features)
+    validator_scores = get_validator_scores(event.validators)
+    proof_required = False
+
+    if anom_score > HIGH_THRESHOLD:
+        create_alert(event, severity="high")
+        policy = policy_engine.evaluate(alert)
+        if policy.action == "soft_throttle":
+            apply_throttle(direction=event.direction, factor=policy.factor)
+        elif policy.action == "pause":
+            if operator_approve():
+                onchain.pause(direction=event.direction)
+        proof_required = True
+
+    if any(v.score < VALIDATOR_SCORE_MIN for v in event.validators):
+        proof_required = True
+
+    if proof_required:
+        schedule_immediate_proof_verification(event)
+```
+
+---
+
+## Closing notes
+
+This design offers a pragmatic, layered, and auditable approach:
+
+* **Validators** give the speed users expect.
+* **Light clients + proof verification** supply cryptographic guarantees.
+* **AI** provides early detection, intelligent orchestration, dynamic economics, and human-guided automated response — improving safety and economic sustainability while preserving human oversight for high-impact decisions.
+
+If you want, I can:
+
+* produce the architecture diagram (SVG/PNG) annotated with the AI modules and dataflows;
+* draft a concrete API spec for the Decision Service and on-chain contract interfaces;
+* create sample ML model training pipelines and a templated incident report format.
+
+Which next deliverable would you like?
 
 ---
 

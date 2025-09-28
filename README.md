@@ -2,7 +2,7 @@
 This bridge connects the Qubic network with the Solana network, allowing users to transfer tokens between the two networks. 
 
 
-## 1 Project Scope‬
+# 1 Project Scope‬
 The scope of this project covers two main phases: 
 
 1. The design and development of the Qubic–Solana‬ bridge  
@@ -33,42 +33,47 @@ The scope of this project covers two main phases:
 
 ●
 ‬‭ Deployment:‬‭ Deploying the bridge to both Qubic and‬‭ Solana mainnets, with coordinated support‬ for testnet and production rollout.‬
+
 ‭
-‭
-# 2. Блок-схема архитектуры моста Qubic ↔ Solana:
 
-Пользователь → кошельки и смарт-контракты (Qubic / Solana)
 
-Мониторинг событий → Релейеры / Валидаторы
 
-Центральная база и система мониторинга фиксируют все транзакции.
+# 2. Qubic ↔ Solana bridge architecture block diagram:
+
+User → Wallets and Smart Contracts (Qubic / Solana)
+
+Event Monitoring → Relayers / Validators
+
+The central database and monitoring system records all transactions.
 
 ‭<img width="501" height="349" alt="Снимок экрана 2025-09-25 в 15 09 23" src="https://github.com/user-attachments/assets/700c89e4-962a-4f6a-9da0-fe2d7a34479d" />
 
-
+---
 ## Liquidity Pool Model
 
-Как работает:
-На обеих сетях заранее создаются ликвидити-пулы (Qubic ↔ wQubic).
-Пользователь кладёт токен в пул одной сети и мгновенно получает эквивалент из пула другой сети.
-Баланс поддерживается за счёт автоматического ребалансинга и комиссий.
+How it works:
+Liquidity pools are created in advance on both networks (Qubic ↔ wQubic).
+A user deposits a token into a pool on one network and instantly receives the equivalent from a pool on the other network.
+The balance is maintained through automatic rebalancing and fees.
 
-Плюсы:
-- Мгновенные переводы без ожидания верификации.
-- Удобнее для пользователей с точки зрения UX.
-- Возможность вознаграждать провайдеров ликвидности комиссиями.
+Pros:
+- Instant transfers with no verification wait.
+- More user-friendly.
+- Ability to reward liquidity providers with fees.
 
-Минусы:
-- Требует постоянной поддержки ликвидности в пулах.
-- Риск дефицита ликвидности при больших перекосах.
-- Более сложное управление резервами.
-
-Liquidity Pool = скорость и удобство.
+Cons:
+- Requires constant liquidity maintenance in pools.
+- Risk of liquidity shortages during large imbalances.
+- More complex reserve management.
+ 
+ ---
+ 
+Liquidity Pool = speed and convenience.
 ‭
-Блок-схеме моста Qubic ↔ Solana (Liquidity Pool):
-Transfer Request, Sign & Submit Tx, Deposit Tokens — от пользователя до пула Qubic.
-Swap Event, Release Tokens, Receive Tokens, Confirmation — поток через релейеров к Solana.
-Log Events, Tx Records, Pool Balance — параллельная запись и мониторинг.
+Qubic ↔ Solana (Liquidity Pool) bridge flowchart:
+Transfer Request, Sign & Submit Tx, Deposit Tokens — from the user to the Qubic pool.
+Swap Event, Release Tokens, Receive Tokens, Confirmation — flow through relayers to Solana.
+Log Events, Tx Records, Pool Balance — parallel recording and monitoring.
 
 ‭
 <img width="574" height="347" alt="Снимок экрана 2025-09-26 в 12 39 44" src="https://github.com/user-attachments/assets/24e6e309-6beb-47d3-aa5d-ba41af47cb04" />
@@ -80,137 +85,125 @@ Sufficient reserves on both sides of the bridge to handle user transactions with
 Risk minimization related to volatility, liquidity drain, and malicious behavior.
 Sustained user trust through transparent operations and reliable execution of transfers.
 
-
+---
 ## Liquidity Provisioning (Initial Setup)
 
 Dual-Side Pools: Create liquidity pools on both chains (e.g., QUBIC pool and wQUBIC pool on Solana).
 Bootstrapping Liquidity: Initial liquidity provided by the bridge operator and early backers.
 Incentive programs for external liquidity providers (LPs), e.g., yield farming rewards or share of transaction fees.
 
-ПЕРЕВОД:
-Обеспечение ликвидности (первоначальная настройка)
-Двусторонние пулы: создайте пулы ликвидности на обеих цепочках (например, пул QUBIC и пул wQUBIC на Solana).
-Повышение ликвидности: Первоначальная ликвидность была предоставлена ​​оператором моста и ранними спонсорами.
-Программы стимулирования для внешних поставщиков ликвидности (ВП), например, вознаграждения за выращивание урожая или доля комиссий за транзакции.
+---
 
-# 3. План работы моста Qubic ↔ Solana для трансфера токенов. 
-на примере модели Liquidity Pool
+
+
+
+# 3. Qubic ↔ Solana token transfer bridge workflow. 
+using the Liquidity Pool model as an example
 
 <img width="709" height="458" alt="Снимок экрана 2025-09-25 в 20 29 08" src="https://github.com/user-attachments/assets/0ff01598-b716-47af-955d-343f82e6389c" />
 
-### Основные процессы в работе моста
+### Main processes in the operation of the bridge
 
-1. **Инициация → депозит токенов в пул.**
-2. **Мониторинг события → передача валидаторам.**
-3. **Подтверждение валидаторами → формирование кросс-чейн сообщения.**
-4. **Выдача токенов из пула целевой сети.**
-5. **Подтверждение пользователю → обновление статуса.**
-6. **Логирование и мониторинг для безопасности и аудита.**
-
----
-
-### Важные моменты
-
-* Поддержка достаточной ликвидности на обеих сторонах.
-* Защита от double-spend и re-play атак.
-* Надёжная работа валидаторов (мультисиг, защита ключей).
-* Постоянный мониторинг пула и системы.
----
-
-### 1. **Инициация пользователем**
-
-* Пользователь открывает **Frontend/UI** (веб-интерфейс или dApp).
-* Подключает свой кошелёк: **Qubic Wallet** и/или **Solana Wallet**.
-* Выбирает:
-
-  * источник (Qubic или Solana),
-  * количество токенов,
-  * модель моста (**Liquidity Pool**),
-  * адрес назначения.
-* Система отображает **комиссии**, **баланс пулов** и **примерное время перевода**.
+1. **Initiation → token deposit into the pool.**
+2. **Event monitoring → transmission to validators.**
+3. **Validator confirmation → generation of a cross-chain message.**
+4. **Issue tokens from the target network pool.**
+5. **User confirmation → status update.**
+6. **Logging and monitoring for security and auditing.**
 
 ---
 
-### 2. **Отправка транзакции**
+### Important points
 
-* Пользователь подтверждает операцию в своём кошельке (подписывает транзакцию).
-* Токены отправляются в **Liquidity Pool на исходной сети** (например, Qubic).
-* Смарт-контракт пула фиксирует депозит и генерирует событие о пополнении.
+* Maintaining sufficient liquidity on both sides.
+* Protection against double-spend and replay attacks.
+* Reliable validator operation (multisig, key protection).
+* Continuous pool and system monitoring.
+---
+
+### 1. **User initiation**
+
+* The user opens the **Frontend/UI** (web interface or dApp).
+* Connects their wallet: **Qubic Wallet** and/or **Solana Wallet**.
+* Selects:
+
+ * source (Qubic or Solana),
+* number of tokens,
+* bridge model (**Liquidity Pool**),
+* destination address.
+* The system displays **fees**, **pool balance**, and **estimated transfer time**.
 
 ---
 
-### 3. **Мониторинг и верификация**
+### 2. **Transaction Submission**
 
-* **Event Monitor** на стороне Qubic фиксирует событие депозита.
-* Информация передаётся в **Relayer / Validators** (сетевой слой мостов).
-* Валидаторы проверяют корректность транзакции:
-
-  * подписи пользователя,
-  * уникальность nonce (чтобы не было повторного исполнения),
-  * баланс пула.
+* The user confirms the operation in their wallet (signs the transaction).
+* Tokens are sent to the **Liquidity Pool on the source network** (e.g., Qubic).
+* The pool’s smart contract records the deposit and generates a deposit event.
 
 ---
 
-### 4. **Кросс-чейн координация**
+### 3. **Monitoring and Verification**
 
-* После подтверждения валидаторы создают сообщение для противоположной сети (Solana).
-* Это сообщение включает:
+* The **Event Monitor** on the Qubic side captures the deposit event.
+* Information is forwarded to the **Relayer / Validators** (the bridge network layer).
+* Validators check the correctness of the transaction:
 
-  * ID транзакции,
-  * сумму и токен,
-  * адрес получателя.
-* Валидаторы подписывают сообщение (мультисиг) и отправляют его в **Liquidity Pool на Solana**.
-
----
-
-### 5. **Выдача средств на целевой сети**
-
-* **Liquidity Pool (Solana)** получает инструкцию от валидаторов.
-* Смарт-контракт проверяет подписи и данные.
-* Из пула Solana списываются соответствующие токены (например, wQUBIC → QUBIC, или наоборот).
-* Средства переводятся на **Solana Wallet получателя**.
+  * user signatures,
+  * nonce uniqueness (to prevent replay execution),
+  * pool balance.
 
 ---
 
-### 6. **Подтверждение пользователю**
+### 4. **Cross-Chain Coordination**
 
-* **Frontend/UI** получает от Solana сети статус "Transaction Completed".
-* Пользователь видит:
+* After confirmation, validators create a message for the target network (Solana).
+* This message includes:
 
-  * хэш транзакции,
-  * подтверждение получения,
-  * обновлённый баланс в кошельке.
-
----
-
-### 7. **Мониторинг и отчётность**
-
-* Все события (депозит, релиз, статус) логируются в **Database & Monitoring**.
-* Система мониторинга:
-
-  * отслеживает баланс пулов,
-  * фиксирует ошибки, таймауты, повторные попытки,
-  * уведомляет о проблемах (например, недостаток ликвидности).
-* В случае сбоя:
-
-  * транзакция может быть отменена,
-  * токены возвращены на исходный кошелёк.
+  * transaction ID,
+  * amount and token,
+  * recipient address.
+* Validators sign the message (multisig) and send it to the **Liquidity Pool on Solana**.
 
 ---
 
+### 5. **Funds Release on the Target Network**
 
+* The **Liquidity Pool (Solana)** receives the instruction from the validators.
+* The smart contract verifies the signatures and data.
+* The corresponding tokens are deducted from the Solana pool (e.g., wQUBIC → QUBIC, or vice versa).
+* Funds are transferred to the **recipient’s Solana Wallet**.
 
 ---
-# 4. Bridge with a набором валидаторов/релееров и пулом ликвидности:
 
-| Источник дохода                             | Как формируется                                                                                                                  | Распределение / доли                                                                                    | Замечания                                                                            |
-| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| Транзакционные комиссии (bridge fee)        | Пользователь платит комиссию за перевод (фиксированная или процент)                                                              | Например: 50 % → валидаторам / релеерам / операторам, 30 % → резерв безопасности, 20 % → DAO / развитие | Комиссия может быть дифференцированной (приоритетный перевод, большая сумма и т. д.) |
-| Доход с ликвидности / блокированных активов | Активы, заблокированные в мостовых пулах, могут участвовать в стейкинговых или yield-стратегиях                                  | Часть дохода идёт мосту (например 20-30 %), остальное — поставщикам ликвидности (LP)                    | Нужно выбирать безопасные стратегии, не подвергающие актив мосту большому риску      |
-| Плата за подписку / сервис интеграции       | Проекты, желающие интегрировать свой токен или услугу через мост, платят за API / SDK / обслуживание                             | 100 % → мост / DAO                                                                                      | Стабильный источник дохода вне зависимости от трафика пользователей                  |
-| Комиссия за relay / сообщение               | Если мост поддерживает не просто токены, а произвольные сообщения / контракты, релееры взимают плату                             | Например: фиксированная плата + переменная часть                                                        | Особенно актуально в GMP-мостах                                                      |
-| Часть от операций внутри моста / свопов     | Если мост встроен с DEX / обменом внутри цепочек, часть спреда / платы идет мосту                                                | Можно брать, скажем, 0.1-0.3 % от суммы свопа                                                           | Требует интеграции с DEX-механизмами                                                 |
-| Резерв безопасности / штрафы                | При ошибках, злоупотреблениях или деривативах, часть штрафов или комиссий остаётся в резерве, который покрывает возможные убытки | Фонд накапливается до определённого порога                                                              | Это снижает риски и повышает доверие                                                 |
+### 6. **User Confirmation**
+
+* The **Frontend/UI** receives a “Transaction Completed” status from the Solana network.
+* The user sees:
+
+  * transaction hash,
+  * confirmation of receipt,
+  * updated wallet balance.
+
+---
+
+### 7. **Monitoring and Reporting**
+
+* All events (deposit, release, status) are logged in the **Database & Monitoring** system.
+* The monitoring system:
+
+  * tracks pool balances,
+  * logs errors, timeouts, retries,
+  * alerts about issues (e.g., liquidity shortage).
+* In case of failure:
+
+  * the transaction may be rolled back,
+  * tokens returned to the source wallet.
+---
+
+
+
+# 4. Bridge with a set of validators/relays and a liquidity pool:                                              
 
 
 | Revenue Source                              | How It Is Generated                                                                                                                | Distribution / Shares                                                                             | Notes                                                                             |
@@ -223,8 +216,7 @@ Incentive programs for external liquidity providers (LPs), e.g., yield farming r
 | Security Reserve / Penalties                | In case of errors, abuse, or misbehavior, part of the penalties or fees remains in the reserve fund, which covers potential losses | The fund accumulates up to a defined threshold                                                    | Reduces risks and increases trust                                                 |
 
 
-Комиссия за перевод может составляет 1-2 %. 
-
+The transfer fee may be 1-2%.
 
 ---
 
@@ -266,6 +258,8 @@ Key goals:
 
   * collectors for fee shares, reserve fund contract, staking/slashing interfaces.
 
+---
+
 ### Off-chain components
 
 * **Validator Network (N nodes)**:
@@ -289,6 +283,8 @@ Key goals:
 * **Governance & Treasury**:
 
   * DAO proposals, treasury to top-up liquidity/reserves, manage policy params.
+
+---
 
 ### Integration layer
 
@@ -423,7 +419,9 @@ Key goals:
 
 ---
 
-## APIs & message formats (examples)
+
+
+# 7. APIs & message formats (examples)
 
 ### 1. Decision Service → On-chain (signed message)
 
@@ -500,25 +498,25 @@ Key goals:
 
 ## Deployment roadmap & phased rollout
 
-**Phase 0 — foundational (0–2 months)**
+**Phase 0 — foundational**
 
 * Deploy basic validator network & relayers.
 * Implement bridge contracts (lock/mint) and reserve contract.
 * Deploy monitoring + simple rule-based alerts.
 
-**Phase 1 — ML pilot & light client (2–6 months)**
+**Phase 1 — ML pilot & light client**
 
 * Implement Data Collector, simple anomaly detection, validator scoring baseline.
 * Deploy light-client proof verification module (basic).
 * Policy Engine for recommended actions; human-in-loop required.
 
-**Phase 2 — optimization & automation (6–12 months)**
+**Phase 2 — optimization & automation**
 
 * RL fee optimizer in shadow mode; then conservative live mode.
 * Proof-batching optimizer & selective proof enforcement.
 * Automated incident assistant (operator approval still required for critical actions).
 
-**Phase 3 — maturity (12+ months)**
+**Phase 3 — maturity**
 
 * Full automation pathways with strict safeguards, explainability guarantees, DAO-managed policy updates.
 * Extensive external audits and public PoR feeds; community bug-bounty.
@@ -573,21 +571,12 @@ This design offers a pragmatic, layered, and auditable approach:
 * **Validators** give the speed users expect.
 * **Light clients + proof verification** supply cryptographic guarantees.
 * **AI** provides early detection, intelligent orchestration, dynamic economics, and human-guided automated response — improving safety and economic sustainability while preserving human oversight for high-impact decisions.
-
-If you want, I can:
-
-* produce the architecture diagram (SVG/PNG) annotated with the AI modules and dataflows;
-* draft a concrete API spec for the Decision Service and on-chain contract interfaces;
-* create sample ML model training pipelines and a templated incident report format.
-
-Which next deliverable would you like?
-
 ---
 
 
----
 
-# 5. Detailed Development Plan (10 Months)
+
+# 6. Detailed Development Plan (10 Months)
 
 <img width="667" height="342" alt="Снимок экрана 2025-09-24 в 19 05 45" src="https://github.com/user-attachments/assets/c40c12cf-58e9-4e90-b661-70beae041f76" />
 
@@ -668,7 +657,7 @@ Which next deliverable would you like?
 
 
 
-# 6. Budget Allocation $90,000
+# 8. Budget Allocation $90,000
 
 | Month     | Focus                                                        | % of Budget | Amount (USD) |
 | --------- | ------------------------------------------------------------ | ----------- | ------------ |
@@ -686,12 +675,20 @@ First milestone ≤ 20% (we allocated exactly 20%).
 Final milestone ≥ 30% (combined Month 4 + 5 payments = 35%)
 Ensures compliance with QA and milestone-based payments
 
+---
 
 
-# ‭7.Каналы поддержки
- Настроим саппорт через Дискорд и телеграм  
 
-# 8. Team. Master List of Specialists Needed
+# 9. Support Channels
+We'll set up support via Discord and Telegram and others.
+
+---
+
+
+
+# 10. Team. Master List of Specialists Needed
+
+## Information about the team and work experience https://lab.tenzorro.com/
 
 ### **Leadership & Oversight**
 
@@ -717,5 +714,7 @@ Ensures compliance with QA and milestone-based payments
 
 * **Liquidity/Operations Specialist (1)** – manage liquidity provisioning and balancing.
 * **Support & Community Manager (1)** – user support channels, FAQs, documentation.
+
+
 
 ‭
